@@ -1,0 +1,20 @@
+[project]
+name = "notebook-degrease"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [{ name = "Timothe Jost", email = "timothe.jost@wanadoo.fr" }]
+dependencies = []
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "MIT" }
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.scripts]
+degrease = { "call" = "notebook_degrease:degrease" }
