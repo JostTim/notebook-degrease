@@ -1,4 +1,5 @@
 import json, re
+from json.decoder import JSONDecodeError
 from pathlib import Path
 from shutil import copy2, rmtree
 
@@ -24,6 +25,7 @@ EXCLUDE_LIST = [
     "*.hd5",
     "*.hdf5",
     "*.log",
+    "*.pdf",
 ]
 DEGREASED_TYPES = ["image/png", "image/svg"]
 EXCLUDE_GIT_REMOVAL = ".git"
@@ -59,17 +61,26 @@ def remove_outputs_from_notebook(input_path: PathLike, output_path: PathLike):
 
     input_path = Path(input_path).resolve()
 
-    with open(input_path, "r", encoding="utf-8") as f:
-        notebook = json.load(f)
+    if input_path.stat().st_size == 0:
+        copy2(input_path, output_path)
+        printcolor(f"The file {input_path} was empty !", color="yellow")
+        return
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            notebook = json.load(f)
 
-    for cell in notebook.get("cells", []):
-        if cell.get("cell_type") == "code":
-            cell["outputs"] = [
-                output for output in cell.get("outputs", []) if not must_degrease(output.get("data", {}))
-            ]
+        for cell in notebook.get("cells", []):
+            if cell.get("cell_type") == "code":
+                cell["outputs"] = [
+                    output for output in cell.get("outputs", []) if not must_degrease(output.get("data", {}))
+                ]
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(notebook, f, indent=1)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(notebook, f, indent=1)
+    except JSONDecodeError:
+        printcolor(f"A JSONDecodeError ocured when trying to read/write {input_path}", color="red")
+        copy2(input_path, output_path)
+        return
 
 
 def regexpize(pattern_string: str):
@@ -99,10 +110,16 @@ def cleanup_destination(copy_destination: PathLike):
 
         for dir in dirs:
             path = root / dir
+            if str(path.relative_to(copy_destination)).startswith(EXCLUDE_GIT_REMOVAL):
+                continue
+
             rmtree(path, ignore_errors=True)
 
         for file in files:
             path = root / file
+            if str(path.relative_to(copy_destination)).startswith(EXCLUDE_GIT_REMOVAL):
+                continue
+
             path.unlink(missing_ok=True)
 
     printcolor("✨ Finished cleaning directory ", "green", end="")
